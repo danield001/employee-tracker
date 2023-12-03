@@ -1,4 +1,6 @@
 const inquirer = require('inquirer');
+const db = require('./mysql');
+
 
 
 function promptUser() {
@@ -73,7 +75,7 @@ const viewEmployees = () => {
 // ADD EMPLOYEE FUNCTION
 
 const addEmployee = () => {
-    return inquirer.prompt([
+    inquirer.prompt([
         {
             type: "input",
             name: "firstName",
@@ -83,8 +85,8 @@ const addEmployee = () => {
             type: "input",
             name: "lastName",
             message: "What is the employee's last name?"
-        };
-    ]);
+        }
+    ])
         .then(answer => {
             const params = [answer.firstName, answer.lastName]
             const sql = `SELECT * FROM roles`;
@@ -92,16 +94,16 @@ const addEmployee = () => {
                 if (err) {
                     throw err;
                 };
-                const roles = rows.map(({ id, title })) => ({ value: id, name: title });
+                const roles = rows.map(({ id, title }) => ({ value: id, name: title }));
                 inquirer.prompt([
                     {
                         type: "list",
                         name: "role",
                         message: "What is the employee's role?",
                         choices: roles
-                    };
-            ]);
-            .then(answer2 => {
+                    }
+                ])
+                    .then(answer2 => {
                         const employeeRole = answer2.role.id;
                         params.push(employeeRole);
 
@@ -115,59 +117,68 @@ const addEmployee = () => {
                             return promptUser();
                         });
                     });
+            });
         });
+};
 
 // UPDATE EMPLOYEE FUNCTION
 const updateEmployee = () => {
-    const sql = `SELECT first_name, last_name, id FROM employees`
+    const sql = `SELECT first_name, last_name, id FROM employees`;
     db.query(sql, (err, rows) => {
         if (err) {
-            throw err
+            throw err;
         }
-    }
-const employees = rows.map(({ first_name, last_name, id })) => ({ name: `${first_name} ${last_name}`, value: id });
-inquirer.prompt([
-    {
-        type: "list",
-        name: "employee",
-        message: "Which employee would you like to update?",
-        choices: employees
-    }
-])
-    .then(employeeAns => {
-        const employee = employeeAns.employee;
-        const params = [employee];
-        const sql = `SELECT title, id FROM roles`
-        db.query(sql, (err, rows) => {
-            if (err) {
-                throw err
+
+        const employees = rows.map(({ first_name, last_name, id }) => ({ name: `${first_name} ${last_name}`, value: id }));
+
+        inquirer.prompt([
+            {
+                type: "list",
+                name: "employee",
+                message: "Which employee would you like to update?",
+                choices: employees
             }
-            const roles = rows.map(({ title, id })) => ({ name: title, value: id });
-            inquirer.prompt([
-                {
-                    type: "list",
-                    name: "role",
-                    message: "What is the employee's new role?",
-                    choices: roles
-                }
-            ])
-                .then(rolesAns => {
-                    const role = rolesAns.role;
-                    params.unshift(role);
-                    const sql = `UPDATE employees
-                    SET role_id = ?
-                    WHERE id = ?`
-                    db.query(sql, params, (err) => {
-                        if (err) {
-                            throw err
+        ])
+            .then(employeeAns => {
+                const employee = employeeAns.employee;
+                const params = [employee];
+
+                const sqlRoles = `SELECT title, id FROM roles`;
+                db.query(sqlRoles, (err, rows) => {
+                    if (err) {
+                        throw err;
+                    }
+
+                    const roles = rows.map(({ id, title }) => ({ value: id, name: title }));
+
+                    inquirer.prompt([
+                        {
+                            type: "list",
+                            name: "role",
+                            message: "What is the employee's new role?",
+                            choices: roles
                         }
-                        console.log("Employee Updated!");
-                        return promptUser();
-                    })
-                })
-        })
-    })
-});
+                    ])
+                        .then(rolesAns => {
+                            const role = rolesAns.role;
+                            params.unshift(role);
+
+                            const sqlUpdate = `UPDATE employees
+                        SET role_id = ?
+                        WHERE id = ?`;
+
+                            db.query(sqlUpdate, params, (err) => {
+                                if (err) {
+                                    throw err;
+                                }
+                                console.log("Employee Updated!");
+                                return promptUser();
+                            });
+                        });
+                });
+            });
+    });
+};
 
 
 
@@ -175,7 +186,7 @@ inquirer.prompt([
 
 const viewRoles = () => {
     const sql = `SELECT * FROM roles`;
-    db.query(sql, (err, rows) => {
+    db.query(sql, (err) => {
         if (err) {
             throw err
         }
@@ -200,7 +211,7 @@ const addRole = () => {
             message: "Enter salary for this role",
         }
     ])
-        .then(answers => {
+        .then(answer => {
             const params = [answer.roleName, answer.salary];
             const sql = `INSERT INTO roles (title, salary)
         VALUES (?, ?)`;
@@ -217,7 +228,7 @@ const addRole = () => {
 
 const viewDepartments = () => {
     const sql = `SELECT * FROM departments`;
-    db.query(sql, (err, rows) => {
+    db.query(sql, (err) => {
         if (err) {
             throw err
         }
@@ -248,4 +259,7 @@ const addDepartment = () => {
             });
         });
 };
+
+promptUser();
+
 

@@ -26,6 +26,7 @@ function promptUser() {
         .then((answers) => {
             const nextAction = answers.action
             if (nextAction === "View All Employees") {
+                console.log(1)
                 viewEmployees();
             };
 
@@ -63,11 +64,12 @@ function promptUser() {
 
 const viewEmployees = () => {
     const sql = `SELECT * FROM employees`;
+    console.log(2);
     db.query(sql, (err, rows) => {
         if (err) {
             throw err
         }
-        console.log("\n");
+        console.table(rows);
         return promptUser();
     });
 };
@@ -75,50 +77,53 @@ const viewEmployees = () => {
 // ADD EMPLOYEE FUNCTION
 
 const addEmployee = () => {
-    inquirer.prompt([
-        {
-            type: "input",
-            name: "firstName",
-            message: "What is the employee's first name?"
-        },
-        {
-            type: "input",
-            name: "lastName",
-            message: "What is the employee's last name?"
-        }
-    ])
-        .then(answer => {
-            const params = [answer.firstName, answer.lastName]
-            const sql = `SELECT * FROM roles`;
-            db.query(sql, (err, rows) => {
-                if (err) {
-                    throw err;
-                };
-                const roles = rows.map(({ id, title }) => ({ value: id, name: title }));
-                inquirer.prompt([
-                    {
-                        type: "list",
-                        name: "role",
-                        message: "What is the employee's role?",
-                        choices: roles
-                    }
-                ])
-                    .then(answer2 => {
-                        const employeeRole = answer2.role.id;
-                        params.push(employeeRole);
+    const sql = 'SELECT * FROM roles';
+    db.query(sql, async (err, rows) => {
+        try {
+            if (err) {
+                throw err;
+            }
 
-                        const sql = `INSERT INTO employees (first_name, last_name, role_id)
-                    VALUES (?, ?, ?)`;
-                        db.query(sql, params, (err) => {
-                            if (err) {
-                                throw err
-                            }
-                            console.log("Employee added to database!");
-                            return promptUser();
-                        });
-                    });
+            const roles = rows.map(({ id, title }) => ({ value: id, name: title }));
+            const answer = await inquirer.prompt([
+                {
+                    type: 'input',
+                    name: 'id',
+                    message: 'What is employee id?'
+                },
+                {
+                    type: 'input',
+                    name: 'firstName',
+                    message: "What is the employee's first name?"
+                },
+                {
+                    type: 'input',
+                    name: 'lastName',
+                    message: "What is the employee's last name?"
+                },
+                {
+                    type: 'list',
+                    name: 'role',
+                    message: "What is the employee's role?",
+                    choices: roles
+                }
+            ]);
+
+            const params = [answer.id, answer.firstName, answer.lastName, answer.role];
+            const insertSql = 'INSERT INTO employees (id, first_name, last_name, role_id) VALUES (?, ?, ?, ?)';
+
+            db.query(insertSql, params, (insertErr) => {
+                if (insertErr) {
+                    throw insertErr;
+                }
+
+                console.log('Employee added to database!');
+                promptUser();
             });
-        });
+        } catch (error) {
+            console.error('Error adding employee:', error);
+        }
+    });
 };
 
 // UPDATE EMPLOYEE FUNCTION
@@ -172,6 +177,7 @@ const updateEmployee = () => {
                                     throw err;
                                 }
                                 console.log("Employee Updated!");
+
                                 return promptUser();
                             });
                         });
@@ -186,53 +192,74 @@ const updateEmployee = () => {
 
 const viewRoles = () => {
     const sql = `SELECT * FROM roles`;
-    db.query(sql, (err) => {
+    db.query(sql, (err, rows) => {
         if (err) {
             throw err
         }
-        console.log("\n");
+        console.table(rows);
         return promptUser();
     });
 };
 
 // ADD ROLE FUNCTION
-//ADD IN ROLE ID!!!!!!!!!!!!
 
 const addRole = () => {
-    return inquirer.prompt([
-        {
-            type: "input",
-            name: "roleName",
-            message: "Enter new role",
-        },
-        {
-            type: "input",
-            name: "salary",
-            message: "Enter salary for this role",
+
+    const sqlDept = `SELECT dept_name, id FROM departments`;
+    db.query(sqlDept, (err, rows) => {
+        if (err) {
+            throw err;
         }
-    ])
-        .then(answer => {
-            const params = [answer.roleName, answer.salary];
-            const sql = `INSERT INTO roles (title, salary)
-        VALUES (?, ?)`;
-            db.query(sql, params, (err) => {
-                if (err) {
-                    throw err
-                }
-                console.log("New Role Added!");
+
+        const departments = rows.map(({ id, dept_name }) => ({ value: id, name: dept_name }));
+
+        inquirer.prompt([
+            {
+                type: 'input',
+                name: "id",
+                message: 'Enter role id'
+            },
+            {
+                type: "input",
+                name: "roleName",
+                message: "Enter new role",
+            },
+            {
+                type: "input",
+                name: "salary",
+                message: "Enter salary for this role",
+            },
+            {
+                type: 'list',
+                name: 'department',
+                message: 'Select department for role',
+                choices: departments
+            }
+        ])
+            .then(answer => {
+                const params = [answer.id, answer.roleName, answer.salary, answer.department];
+                const sql = `INSERT INTO roles (id, title, salary, department_id)
+        VALUES (?, ?, ?, ?)`;
+                db.query(sql, params, (err) => {
+                    if (err) {
+                        throw err
+                    }
+                    console.log("New Role Added!");
+                    return promptUser();
+                });
             });
-        });
+    });
 };
 
 // VIEW DEPARTMENTS FUNCTION
 
 const viewDepartments = () => {
     const sql = `SELECT * FROM departments`;
-    db.query(sql, (err) => {
+    db.query(sql, (err, rows) => {
         if (err) {
             throw err
         }
-        console.log("\n");
+        console.table(rows);
         return promptUser();
     });
 };
@@ -243,19 +270,25 @@ const addDepartment = () => {
     return inquirer.prompt([
         {
             type: "input",
+            name: "id",
+            message: "Enter new department id"
+        },
+        {
+            type: "input",
             name: "department",
             message: "What is the department name?"
         }
     ])
         .then(answer => {
-            const params = [answer.department]
-            const sql = `INSERT INTO departments (name)
-        VALUES (?)`;
+            const params = [answer.id, answer.department]
+            const sql = `INSERT INTO departments (id, dept_name)
+        VALUES (?, ?)`;
             db.query(sql, params, (err) => {
                 if (err) {
                     throw err
                 };
                 console.log("New Department Added!");
+                return promptUser();
             });
         });
 };
